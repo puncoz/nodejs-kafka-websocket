@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Node.js, kafka and websocket demo.</title>
+
+    <style>
+        .container {
+            display: flex;
+            justify-content: left;
+            align-items: center;
+        }
+
+        .container .chart {
+            width: 400px;
+            height: 400px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="chart">
+            <canvas id="myChart" width="400" height="400"></canvas>
+        </div>
+        <div>
+            <button class="send-data">Send Data</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.4.1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script>
+
+    <script>
+        const ctx = document.getElementById('myChart').getContext('2d');
+        const chart = new Chart(ctx, {
+            type: "line",
+            data: {
+                labels: ["0", '1', '2', '3', '4', '5', '6', '7', '8', '9'],
+                datasets: [
+                    {
+                        backgroundColor: "rgba(54, 162, 235, 0.5)",
+                        borderColor: "rgba(54, 162, 235, 1)",
+                        pointColor: "rgba(54, 162, 235, 1)",
+                        pointBorderColor: "#fff",
+                        data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                    }
+                ]
+            },
+            options: {
+                scales: {
+                    yAxes: [{
+                        ticks: {
+                            beginAtZero: true,
+                            max: 10,
+                            min: 0,
+                        }
+                    }]
+                }
+            }
+        })
+
+        const initWebSocket = () => {
+            if (!("WebSocket" in window)) {
+                console.error("WebSocket not supported in this browser.")
+
+                return
+            }
+
+            console.log("WebSocket is supported by this browser.")
+            const ws = new WebSocket("ws://localhost:8081/", "echo-protocol")
+
+            return ws
+        }
+
+        $(document).ready(() => {
+            const websocket = initWebSocket()
+
+            websocket.onopen = () => {
+                console.log("Connection created.")
+            }
+
+            websocket.onmessage = (event) => {
+                const receivedMessage = event.data
+                console.log("receivedMessage", receivedMessage)
+
+                const chartData = chart.data.datasets[0].data
+                chartData.shift()
+                chartData.push(receivedMessage)
+                chart.data.datasets[0].data = chartData
+                chart.update()
+            }
+
+            websocket.onclose = () => {
+                console.log("Connection closed.")
+            }
+
+            $(document).on("click", ".send-data", (event) => {
+                event.preventDefault()
+
+                const randomNumber = parseInt(Math.random() * 10)
+                websocket.send(randomNumber)
+            })
+        })
+    </script>
+</body>
+
+</html>
